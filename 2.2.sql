@@ -171,3 +171,58 @@ HAVING Количество =
 --Вывести в алфавитном порядке всех авторов, которые пишут только в одном жанре. 
 --Поскольку у нас в таблицах так занесены данные, что у каждого автора книги только в одном жанре, для этого запроса внесем изменения в таблицу book. 
 --Пусть у нас  книга Есенина «Черный человек» относится к жанру «Роман», а книга Булгакова «Белая гвардия» к «Приключениям» (эти изменения в таблицы уже внесены).
+--Вложенные запросы могут использоваться в операторах соединения JOIN. 
+--При этом им необходимо присваивать имя, которое записывается сразу после закрывающей скобки вложенного запроса.
+
+SELECT name_author
+FROM author
+         INNER JOIN
+     (
+         SELECT author_id, COUNT(DISTINCT genre_id) as unic
+         FROM book
+         GROUP BY author_id
+         HAVING unic = 1
+     ) query_in
+     ON author.author_id = query_in.author_id
+ORDER BY name_author
+
+---Вывести информацию о книгах (название книги, фамилию и инициалы автора, название жанра, цену и количество экземпляров книги), 
+-- написанных в самых популярных жанрах, в отсортированном в алфавитном порядке по названию книг виде. 
+-- Самым популярным считать жанр, общее количество экземпляров книг которого на складе максимально.
+
+SELECT title, name_author, name_genre, price, amount
+FROM book
+         INNER JOIN genre ON genre.genre_id = book.genre_id
+         INNER JOIN author ON author.author_id = book.author_id
+         INNER JOIN(
+    SELECT genre_id
+    FROM(
+         (SELECT MAX(sum_amount) AS max_sum_amount
+          FROM(
+                  SELECT genre_id, SUM(amount) AS sum_amount
+                  FROM book
+                  GROUP BY genre_id ) query_in_max ) max_amount
+            INNER JOIN
+        (SELECT genre_id, SUM(amount) AS sum_amount
+         FROM book
+         GROUP BY genre_id ) query_in_max
+        ON query_in_max.sum_amount = max_amount.max_sum_amount)
+) query_in ON query_in.genre_id = book.genre_id
+ORDER BY title
+
+---Оператор Using()
+---Если в таблицах supply  и book есть одинаковые книги, которые имеют равную цену, 
+-- вывести их название и автора, а также посчитать общее количество экземпляров книг в таблицах supply и book,  
+-- столбцы назвать Название, Автор  и Количество.
+ 
+SELECT book.title AS Название, name_author AS Автор, supply.amount + book.amount AS Количество
+FROM author
+         INNER JOIN book USING(author_id)
+         INNER JOIN supply ON book.title = supply.title and book.price = supply.price
+
+--ВЫВОД ВСЕГО
+SELECT title, name_author, name_genre, price, amount
+FROM book
+         INNER JOIN genre ON book.genre_id = genre.genre_id
+         INNER JOIN author ON book.author_id = author.author_id
+ORDER BY name_author
